@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {test} from 'node:test';
+import {blocks,clickScore,report} from '../lib/assessment.ts';
+const sample=(r,score)=>({...r,score,hits:10,shots:12,timeouts:0,meanMs:500,onTarget:50,error:2,raw:true});
+const evidence=(a,b)=>[...blocks([1,.85],'复测',0),...blocks([.85,1],'复测',1)].map(r=>sample(r,r.factor===1?50:r.repeat===0?a:b));
+test('spam clicks cannot improve score; no hits gives zero',()=>{assert.equal(clickScore(0,0,15,0),0);assert.ok(clickScore(10,100,15,0)<clickScore(10,10,15,0));assert.ok(clickScore(10,10,30,0)<clickScore(10,10,15,0));});
+test('two consistent independent comparisons can recommend',()=>{assert.equal(report(evidence(65,64)).factor,.85);});
+test('contradictory or small improvements retain baseline',()=>{assert.equal(report(evidence(80,49)).factor,1);assert.equal(report(evidence(54,54)).factor,1);});
+test('missing, duplicated and fallback-input blocks cannot recommend',()=>{const s=evidence(70,70);assert.equal(report(s.slice(1)).improvement,false);assert.equal(report(s.map((r,i)=>i===0?{...r,raw:false}:r)).improvement,false);s[0]=s[1];assert.equal(report(s).complete,false);});
+test('an optimum at the search boundary is inconclusive',()=>{const s=[...evidence(70,70),...blocks([.77,.85,.94],'精测').map(r=>sample(r,r.factor===.77?90:40))];assert.equal(report(s).boundary,true);assert.equal(report(s).improvement,false);});
